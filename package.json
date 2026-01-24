@@ -1,0 +1,42 @@
+{
+  "name": "around-the-world-in-books",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@auth/prisma-adapter": "^2.11.1",
+    "@prisma/client": "^6.19.1",
+    "@react-three/drei": "^9.92.7",
+    "@react-three/fiber": "^8.15.11",
+    "bcryptjs": "^3.0.3",
+    "d3-geo": "^3.1.0",
+    "next": "^14.0.4",
+    "next-auth": "^4.24.13",
+    "prisma": "^6.19.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-globe.gl": "^2.31.2",
+    "three": "^0.168.0",
+    "topojson-client": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/d3-geo": "^3.0.0",
+    "@types/node": "^20.10.6",
+    "@types/react": "^18.2.46",
+    "@types/react-dom": "^18.2.18",
+    "@types/three": "^0.168.0",
+    "@types/topojson-client": "^3.0.0",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "^14.0.4",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.3.3"
+  }
+}
