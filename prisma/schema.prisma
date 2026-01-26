@@ -59,6 +59,11 @@ model User {
   theme         String    @default("modern")
   colorMode     String    @default("dark")
   
+  // Location for bookshop/library finder
+  locationCity  String?   // User's city
+  locationLat   Float?    // Latitude
+  locationLng   Float?    // Longitude
+  
   // Timestamps
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
