@@ -17,10 +17,13 @@ import AddBookModal from '@/components/AddBookModal';
 import PassportModal from '@/components/PassportModal';
 import ThemeSwitcher from '@/components/ThemeSwitcher';
 import AuthButton from '@/components/AuthButton';
+import AIRecommendations from '@/components/AIRecommendations';
+import LocationSettings from '@/components/LocationSettings';
 import { useTheme } from '@/context/ThemeContext';
 import { getBooks as getLocalBooks, getBooksByCountry as getLocalBooksByCountry } from '@/lib/storage';
 import { Book } from '@/types';
-import { getCountryName } from '@/lib/countries';
+import { getCountryName, getCountryCode } from '@/lib/countries';
+import { BookRecommendation } from '@/components/RecommendationCard';
 
 export default function Home() {
   const { theme } = useTheme();
@@ -30,6 +33,7 @@ export default function Home() {
   const [selectedBooks, setSelectedBooks] = useState<Book[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isPassportOpen, setIsPassportOpen] = useState(false);
+  const [isLocationSettingsOpen, setIsLocationSettingsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -134,6 +138,14 @@ export default function Home() {
 
   const handleBookDeleted = () => {
     loadBooks();
+  };
+
+  const handleAddBookFromRecommendation = (recommendation: BookRecommendation) => {
+    // Pre-fill the add book modal with recommendation data
+    setSelectedCountry(getCountryCode(recommendation.country) || undefined);
+    setIsAddModalOpen(true);
+    // Note: We'd need to modify AddBookModal to accept initial values
+    // For now, user will need to manually enter the book
   };
 
   // Calculate books by country from the books state
@@ -289,6 +301,23 @@ export default function Home() {
                 <span className="sm:hidden">+</span>
                 <span className="hidden sm:inline">+ Add Book</span>
               </button>
+              
+              {/* Location Settings Button */}
+              {session?.user && (
+                <button
+                  onClick={() => setIsLocationSettingsOpen(true)}
+                  className="p-2.5 sm:px-3 sm:py-2 rounded-lg transition-all"
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: `1px solid ${theme.colors.cardBorder}`,
+                    color: theme.colors.textSecondary,
+                  }}
+                  title="Set Location"
+                >
+                  <span className="text-lg">📍</span>
+                  <span className="hidden sm:inline ml-1 text-sm">Location</span>
+                </button>
+              )}
               
               {/* Auth Button */}
               <AuthButton />
@@ -523,6 +552,13 @@ export default function Home() {
             </div>
           
           <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+            {/* AI Recommendations Section */}
+            {!selectedCountry && (
+              <div className="mb-6">
+                <AIRecommendations onAddBook={handleAddBookFromRecommendation} />
+              </div>
+            )}
+
             {selectedCountry ? (
               <>
                 <div className="flex justify-between items-center mb-4">
@@ -740,6 +776,12 @@ export default function Home() {
         onClose={() => setIsPassportOpen(false)}
         books={books}
         booksByCountry={booksByCountry}
+      />
+
+      {/* Location Settings Modal */}
+      <LocationSettings
+        isOpen={isLocationSettingsOpen}
+        onClose={() => setIsLocationSettingsOpen(false)}
       />
     </div>
   );
