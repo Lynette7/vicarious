@@ -25,6 +25,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Debug: Log API key status (first 10 chars only for security)
+    const apiKeyPrefix = process.env.OPENAI_API_KEY.substring(0, 10);
+    console.log('OpenAI API Key configured:', apiKeyPrefix + '...');
+    console.log('API Key length:', process.env.OPENAI_API_KEY.length);
+
     // Get user's reading history
     const books = await prisma.book.findMany({
       where: { userId: session.user.id },
@@ -119,6 +124,7 @@ Return ONLY the JSON array, no additional text.`;
     let text: string;
     try {
       console.log('Calling OpenAI with model:', model);
+      // Note: openai() automatically reads OPENAI_API_KEY from environment
       const result = await generateText({
         model: openai(model),
         prompt,
