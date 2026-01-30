@@ -111,6 +111,7 @@ export async function evaluateRecommendation(
   }
   score = Math.min(1.0, score);
 
+  const reasoning = `Recommendation scored ${(score * 100).toFixed(0)}/100 based on diversity, relevance, and reasoning quality.`;
   const evaluation: EvaluationTrace = {
     id: `eval_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     timestamp: new Date(),
@@ -119,7 +120,8 @@ export async function evaluateRecommendation(
     evaluationType: 'llm-as-judge',
     score,
     criteria,
-    reasoning: `Recommendation scored ${(score * 100).toFixed(0)}/100 based on diversity, relevance, and reasoning quality.`,
+    reasoning,
+    metadata: { reasoning, criteria, score },
   };
 
   traces.push(evaluation);

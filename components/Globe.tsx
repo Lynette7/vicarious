@@ -47,9 +47,11 @@ function GlobeComponent({ booksByCountry, selectedCountry, onCountryClick }: Glo
       import('topojson-client')
     ])
       .then(([topology, topojson]) => {
-        // Convert TopoJSON to GeoJSON features
-        const countries = topojson.feature(topology, topology.objects.countries);
-        
+        // Convert TopoJSON to GeoJSON FeatureCollection (runtime returns FeatureCollection for geometry collections)
+        const countries = topojson.feature(topology, topology.objects.countries) as unknown as {
+          features: Array<{ id?: string; properties?: Record<string, unknown>; [key: string]: unknown }>;
+        };
+
         // Country ID to ISO mapping (world-atlas uses numeric IDs)
         const idToIso: Record<string, string> = {
           '004': 'AF', '008': 'AL', '010': 'AQ', '012': 'DZ', '016': 'AS',

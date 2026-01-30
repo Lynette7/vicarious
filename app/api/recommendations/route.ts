@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import OpenAI from 'openai';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { openai } from '@ai-sdk/openai';
-import { generateText } from 'ai';
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,13 +35,15 @@ export async function POST(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
+    type BookRow = (typeof books)[number];
+
     // Get countries already read
-    const countriesRead = Array.from(new Set(books.map(b => b.countryName).filter(Boolean)));
+    const countriesRead = Array.from(new Set(books.map((b: BookRow) => b.countryName).filter(Boolean)));
     const totalBooks = books.length;
     const totalCountries = countriesRead.length;
 
     // Build reading history summary
-    const readingHistory = books.slice(0, 10).map(book => ({
+    const readingHistory = books.slice(0, 10).map((book: BookRow) => ({
       title: book.title,
       author: book.author,
       country: book.countryName || 'Unknown',
@@ -120,26 +121,27 @@ Return ONLY the JSON array, no additional text.`;
 
     // Generate recommendations using OpenAI
     const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-    
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
     let text: string;
     try {
       console.log('Calling OpenAI with model:', model);
-      // Note: openai() automatically reads OPENAI_API_KEY from environment
-      const result = await generateText({
-        model: openai(model),
-        prompt,
+      const completion = await openai.chat.completions.create({
+        model,
+        messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
+        max_tokens: 2000,
       });
-      text = result.text;
-      
-      if (!text || text.trim().length === 0) {
+      text = completion.choices[0]?.message?.content?.trim() ?? '';
+
+      if (!text || text.length === 0) {
         console.error('OpenAI returned empty response');
         return NextResponse.json(
           { error: 'AI service returned an empty response. Please try again.' },
           { status: 500 }
         );
       }
-      
+
       console.log('OpenAI response received, length:', text.length);
     } catch (aiError: any) {
       console.error('OpenAI API error:', aiError);

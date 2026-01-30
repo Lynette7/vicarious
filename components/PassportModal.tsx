@@ -20,7 +20,7 @@ export default function PassportModal({ isOpen, onClose, books, booksByCountry }
 
   const stats: PassportStats = useMemo(() => {
     const countryCodes = Object.keys(booksByCountry);
-    const continentsVisited = [...new Set(countryCodes.map(code => getContinent(code)))].filter(c => c !== 'Unknown');
+    const continentsVisited = Array.from(new Set(countryCodes.map(code => getContinent(code)))).filter(c => c !== 'Unknown');
     
     const countriesPerContinent: Record<string, number> = {};
     countryCodes.forEach(code => {

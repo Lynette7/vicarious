@@ -87,7 +87,7 @@ export async function findNearbyBookshops(
       placeId: place.place_id,
       lat: place.geometry.location.lat,
       lng: place.geometry.location.lng,
-    })).sort((a, b) => a.distance - b.distance);
+    })).sort((a: Bookshop, b: Bookshop) => a.distance - b.distance);
   } catch (error) {
     console.error('Error fetching bookshops:', error);
     return [];
@@ -134,7 +134,7 @@ export async function findNearbyLibraries(
       lat: place.geometry.location.lat,
       lng: place.geometry.location.lng,
       availabilityStatus: 'unknown' as const,
-    })).sort((a, b) => a.distance - b.distance);
+    })).sort((a: Library, b: Library) => a.distance - b.distance);
   } catch (error) {
     console.error('Error fetching libraries:', error);
     return [];

@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useTheme } from '@/context/ThemeContext';
 
-export default function SignInPage() {
+function SignInForm() {
   const { theme } = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -192,5 +192,17 @@ export default function SignInPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center" style={{ color: 'var(--color-text-muted)' }}>Loading...</div>
+      </div>
+    }>
+      <SignInForm />
+    </Suspense>
   );
 }
