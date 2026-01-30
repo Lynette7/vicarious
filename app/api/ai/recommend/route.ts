@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import type { Book } from '@prisma/client';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { generateRecommendation, ReadingHistory } from '@/lib/ai';
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
       orderBy: { endDate: 'desc' },
     });
 
-    const readingHistory: ReadingHistory[] = books.map(book => ({
+    const readingHistory: ReadingHistory[] = books.map((book: Book) => ({
       title: book.title,
       author: book.author,
       country: book.countryName,
