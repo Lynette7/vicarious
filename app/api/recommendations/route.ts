@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
       country: book.countryName || 'Unknown',
       rating: book.rating,
     }));
+    type ReadingHistoryItem = (typeof readingHistory)[number];
 
     // Create the prompt for AI recommendations
     const isFirstTime = totalBooks === 0;
@@ -89,7 +90,7 @@ Return ONLY the JSON array, no additional text.`
 The user has read ${totalBooks} book${totalBooks !== 1 ? 's' : ''} from ${totalCountries} countr${totalCountries !== 1 ? 'ies' : 'y'}.
 
 Recent books read:
-${readingHistory.map(b => `- "${b.title}" by ${b.author} (${b.country})${b.rating ? ` - Rated ${b.rating}/5` : ''}`).join('\n')}
+${readingHistory.map((b: ReadingHistoryItem) => `- "${b.title}" by ${b.author} (${b.country})${b.rating ? ` - Rated ${b.rating}/5` : ''}`).join('\n')}
 
 Countries already explored: ${countriesRead.length > 0 ? countriesRead.join(', ') : 'None yet'}
 
