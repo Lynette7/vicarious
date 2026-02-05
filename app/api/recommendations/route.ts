@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
@@ -15,9 +15,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate OpenAI API key
-    if (!process.env.OPENAI_API_KEY) {
-      console.error('OPENAI_API_KEY is not configured');
+    // Validate Gemini API key
+    if (!process.env.GOOGLE_GEMINI_API_KEY) {
+      console.error('GOOGLE_GEMINI_API_KEY is not configured');
       return NextResponse.json(
         { error: 'AI service is not configured. Please contact support.' },
         { status: 500 }
@@ -25,9 +25,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Debug: Log API key status (first 10 chars only for security)
-    const apiKeyPrefix = process.env.OPENAI_API_KEY.substring(0, 10);
-    console.log('OpenAI API Key configured:', apiKeyPrefix + '...');
-    console.log('API Key length:', process.env.OPENAI_API_KEY.length);
+    const apiKeyPrefix = process.env.GOOGLE_GEMINI_API_KEY.substring(0, 10);
+    console.log('Google Gemini API Key configured:', apiKeyPrefix + '...');
+    console.log('API Key length:', process.env.GOOGLE_GEMINI_API_KEY.length);
 
     // Get user's reading history
     const books = await prisma.book.findMany({
@@ -120,70 +120,143 @@ Format your response as a JSON array with this structure:
 
 Return ONLY the JSON array, no additional text.`;
 
-    // Generate recommendations using OpenAI
-    const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-    let text: string;
+    // Generate recommendations using Gemini
+    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY);
+    
+    // First, try to list available models using the REST API
+    let availableModels: string[] = [];
     try {
-      console.log('Calling OpenAI with model:', model);
-      const completion = await openai.chat.completions.create({
-        model,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        max_tokens: 2000,
-      });
-      text = completion.choices[0]?.message?.content?.trim() ?? '';
-
+      const listResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GOOGLE_GEMINI_API_KEY}`
+      );
+      if (listResponse.ok) {
+        const listData = await listResponse.json();
+        availableModels = (listData.models || [])
+          .map((m: any) => m.name?.replace('models/', '') || '')
+          .filter((name: string) => name && name.includes('gemini'));
+        console.log('Available Gemini models:', availableModels);
+      }
+    } catch (listError) {
+      console.warn('Could not list available models:', listError);
+    }
+    
+    // Try different model names in order of preference
+    // Start with user-specified, then available models, then fallbacks
+    const modelCandidates = [
+      process.env.GEMINI_MODEL, // User-specified model
+      ...availableModels.slice(0, 3), // Top 3 available models
+      'gemini-1.5-flash',       // Fast, commonly available
+      'gemini-1.5-flash-latest', // Latest version
+      'gemini-pro',             // Fallback
+      'gemini-1.0-pro',         // Older version
+    ].filter(Boolean) as string[];
+    
+    let text: string = '';
+    let lastError: any = null;
+    let usedModel = '';
+    
+    try {
+      // Try each model candidate until one works
+      for (const model of modelCandidates) {
+        try {
+          console.log('Trying Gemini model:', model);
+          const geminiModel = genAI.getGenerativeModel({ model });
+          const result = await geminiModel.generateContent(prompt);
+          const response = await result.response;
+          text = response.text().trim();
+          usedModel = model;
+          
+          if (text && text.length > 0) {
+            console.log(`Successfully used model: ${model}, response length: ${text.length}`);
+            break; // Success, exit the loop
+          }
+        } catch (modelError: any) {
+          console.warn(`Model ${model} failed:`, modelError?.message || modelError);
+          lastError = modelError;
+          // Continue to next model
+        }
+      }
+      
+      // If all SDK models failed, try using the v1 REST API directly
       if (!text || text.length === 0) {
-        console.error('OpenAI returned empty response');
+        console.log('SDK models failed, trying v1 REST API directly...');
+        const v1Models = ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.0-pro'];
+        
+        for (const model of v1Models) {
+          try {
+            console.log(`Trying v1 REST API with model: ${model}`);
+            const v1Response = await fetch(
+              `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${process.env.GOOGLE_GEMINI_API_KEY}`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  contents: [{
+                    parts: [{ text: prompt }]
+                  }]
+                }),
+              }
+            );
+            
+            if (v1Response.ok) {
+              const v1Data = await v1Response.json();
+              if (v1Data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                text = v1Data.candidates[0].content.parts[0].text.trim();
+                usedModel = model;
+                console.log(`Successfully used v1 API with model: ${model}, response length: ${text.length}`);
+                break;
+              }
+            } else {
+              const errorData = await v1Response.text();
+              console.warn(`v1 API model ${model} failed:`, v1Response.status, errorData);
+            }
+          } catch (v1Error: any) {
+            console.warn(`v1 API model ${model} error:`, v1Error?.message || v1Error);
+          }
+        }
+      }
+      
+      // If still no text, throw the last error
+      if (!text || text.length === 0) {
+        throw lastError || new Error('All model candidates and API versions failed');
+      }
+
+      console.log(`Gemini response received using model ${usedModel}, length: ${text.length}`);
+    } catch (aiError: any) {
+      console.error('Gemini API error:', aiError);
+      
+      // Extract error details
+      const statusCode = aiError?.status || aiError?.statusCode || aiError?.code;
+      const errorMessage = aiError?.message || aiError?.error?.message || '';
+      
+      // Check for model not found errors (404)
+      if (statusCode === 404 || errorMessage.includes('not found') || errorMessage.includes('is not found')) {
         return NextResponse.json(
-          { error: 'AI service returned an empty response. Please try again.' },
+          { 
+            error: 'The selected AI model is not available. This may be due to API key restrictions or the model not being available in your region. Please check your Google Cloud API key settings and ensure the Generative Language API is enabled.',
+            details: process.env.NODE_ENV === 'development' 
+              ? `Tried models: ${modelCandidates.join(', ')}, Error: ${errorMessage}` 
+              : undefined
+          },
           { status: 500 }
         );
       }
-
-      console.log('OpenAI response received, length:', text.length);
-    } catch (aiError: any) {
-      console.error('OpenAI API error:', aiError);
       
-      // Extract the actual error from RetryError if present
-      const actualError = aiError?.lastError || aiError?.errors?.[0] || aiError;
-      const statusCode = actualError?.statusCode || actualError?.status;
-      const errorCode = actualError?.data?.error?.code || actualError?.error?.code;
-      const errorMessage = actualError?.data?.error?.message || actualError?.error?.message || actualError?.message || '';
-      
-      // Check for quota exceeded error
-      if (
-        statusCode === 429 || 
-        errorCode === 'insufficient_quota' ||
-        errorMessage.includes('exceeded your current quota') ||
-        errorMessage.includes('insufficient_quota')
-      ) {
+      // Check for quota/rate limit errors
+      if (statusCode === 429 || errorMessage.includes('quota') || errorMessage.includes('rate limit')) {
         return NextResponse.json(
-          { error: 'OpenAI API quota has been exceeded. Please check your OpenAI account billing and add credits to continue using AI recommendations.' },
+          { error: 'AI service is temporarily rate-limited. Please try again in a moment.' },
           { status: 503 }
         );
       }
       
       // Check for authentication errors
-      if (
-        statusCode === 401 || 
-        errorMessage.includes('API key') || 
-        errorMessage.includes('authentication') ||
-        errorCode === 'invalid_api_key'
-      ) {
+      if (statusCode === 401 || statusCode === 403 || errorMessage.includes('API key') || errorMessage.includes('authentication') || errorMessage.includes('permission')) {
         return NextResponse.json(
-          { error: 'AI service authentication failed. Please check your API key configuration.' },
+          { error: 'AI service authentication failed. Please check your API key configuration and ensure the Generative Language API is enabled in Google Cloud Console.' },
           { status: 500 }
-        );
-      }
-      
-      // Check for rate limiting (different from quota)
-      if (statusCode === 429 && errorCode !== 'insufficient_quota') {
-        return NextResponse.json(
-          { error: 'AI service is temporarily rate-limited. Please try again in a moment.' },
-          { status: 503 }
         );
       }
       

@@ -10,7 +10,9 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.72.1",
     "@auth/prisma-adapter": "^2.11.1",
+    "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.19.1",
     "@react-three/drei": "^9.92.7",
     "@react-three/fiber": "^8.15.11",
