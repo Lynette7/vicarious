@@ -62,19 +62,23 @@ export default function RecommendationsModal({
     
     try {
       if (session?.user) {
+         const countryCode = getCountryCode(rec.country);
+         console.log('Adding book:', { title: rec.title, country: rec.country, countryCode });
         const res = await fetch('/api/books', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title: rec.title.trim(),
             author: rec.author.trim(),
-            countryCode: getCountryCode(rec.country),
+            countryCode: countryCode,
             countryName: rec.country,
           }),
         });
 
         if (!res.ok) {
-          throw new Error('Failed to add book');
+           const errorData = await res.json().catch(() => ({}));
+            console.error('API Error:', errorData);
+            throw new Error(errorData.error || 'Failed to add book');
         }
       } else {
         // For guest users, you might want to show a message to sign in

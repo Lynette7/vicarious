@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
+import { trackGemini } from 'opik-gemini';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { Opik } from 'opik';
 
 export async function POST(request: NextRequest) {
   try {
@@ -120,8 +122,32 @@ Format your response as a JSON array with this structure:
 
 Return ONLY the JSON array, no additional text.`;
 
-    // Generate recommendations using Gemini
-    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY);
+    // Initialize Opik client for tracing (if API key is set)
+    // Visit https://comet.com/opik/your-workspace-name/get-started to get your API key
+    const opikClient = process.env.OPIK_API_KEY
+      ? new Opik({
+          apiKey: process.env.OPIK_API_KEY,
+          projectName: process.env.OPIK_PROJECT_NAME || 'vicarious',
+          workspaceName: process.env.OPIK_WORKSPACE_NAME || 'mulandi-cecilia',
+        })
+      : null;
+
+    // Initialize Gemini client with the new @google/genai SDK
+    const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_GEMINI_API_KEY });
+    
+    // Wrap with Opik tracking - all calls will be automatically traced
+    const trackedGenAI = opikClient
+      ? trackGemini(genAI, {
+          client: opikClient,
+          traceMetadata: {
+            tags: ['recommendations', 'book-suggestions'],
+            userId: session.user.id,
+            totalBooks: totalBooks,
+            totalCountries: totalCountries,
+            isFirstTime: isFirstTime,
+          },
+        })
+      : genAI; // Fallback to untracked client if Opik is not configured
     
     // First, try to list available models using the REST API
     let availableModels: string[] = [];
@@ -157,20 +183,30 @@ Return ONLY the JSON array, no additional text.`;
     
     try {
       // Try each model candidate until one works
+      // Opik tracing is handled automatically by trackGemini wrapper
       for (const model of modelCandidates) {
         try {
           console.log('Trying Gemini model:', model);
-          const geminiModel = genAI.getGenerativeModel({ model });
-          const result = await geminiModel.generateContent(prompt);
-          const response = await result.response;
-          text = response.text().trim();
+
+          // Use the tracked client - Opik will automatically trace this call
+          const response = await trackedGenAI.models.generateContent({
+            model: model,
+            contents: prompt,
+          });
+          
+          text = response.text?.trim() || '';
           usedModel = model;
           
           if (text && text.length > 0) {
             console.log(`Successfully used model: ${model}, response length: ${text.length}`);
+            // Flush Opik traces to ensure they're sent
+            if (opikClient && 'flush' in trackedGenAI) {
+              await (trackedGenAI as any).flush();
+            }
             break; // Success, exit the loop
           }
         } catch (modelError: any) {
+          // Opik automatically tracks errors, but we'll still log them
           console.warn(`Model ${model} failed:`, modelError?.message || modelError);
           lastError = modelError;
           // Continue to next model
@@ -180,6 +216,7 @@ Return ONLY the JSON array, no additional text.`;
       // If all SDK models failed, try using the v1 REST API directly
       if (!text || text.length === 0) {
         console.log('SDK models failed, trying v1 REST API directly...');
+        const restApiStartTime = Date.now();
         const v1Models = ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.0-pro'];
         
         for (const model of v1Models) {
@@ -205,6 +242,34 @@ Return ONLY the JSON array, no additional text.`;
               if (v1Data.candidates?.[0]?.content?.parts?.[0]?.text) {
                 text = v1Data.candidates[0].content.parts[0].text.trim();
                 usedModel = model;
+                
+                // Track REST API fallback call with Opik
+                if (opikClient) {
+                  try {
+                    await opikClient.trace({
+                      name: 'gemini_generate_content_rest',
+                      input: {
+                        model: model,
+                        prompt: prompt.substring(0, 1000),
+                        userId: session.user.id,
+                        apiType: 'rest',
+                      },
+                      output: {
+                        text: text.substring(0, 1000),
+                        textLength: text.length,
+                        model: usedModel,
+                      },
+                      metadata: {
+                        isFirstTime: isFirstTime,
+                        responseTime: Date.now() - restApiStartTime,
+                      },
+                    });
+                    console.log('[Opik] Gemini REST API call tracked');
+                  } catch (opikError) {
+                    console.warn('[Opik] Error tracking REST API call:', opikError);
+                  }
+                }
+                
                 console.log(`Successfully used v1 API with model: ${model}, response length: ${text.length}`);
                 break;
               }
