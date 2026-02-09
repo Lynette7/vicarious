@@ -56,22 +56,16 @@ export default function LocationSettings({ isOpen, onClose }: LocationSettingsPr
         setLat(newLat);
         setLng(newLng);
 
-        // Try to reverse geocode to get city name
+        // Use OpenStreetMap Nominatim for reverse geocoding (no API key needed)
         try {
-          const apiKey = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY;
-          if (apiKey) {
-            const res = await fetch(
-              `https://maps.googleapis.com/maps/api/geocode/json?latlng=${newLat},${newLng}&key=${apiKey}`
-            );
-            const data = await res.json();
-            if (data.results && data.results.length > 0) {
-              const cityComponent = data.results[0].address_components.find(
-                (comp: any) => comp.types.includes('locality')
-              );
-              if (cityComponent) {
-                setCity(cityComponent.long_name);
-              }
-            }
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${newLat}&lon=${newLng}&format=json`,
+            { headers: { 'Accept-Language': 'en' } }
+          );
+          const data = await res.json();
+          const cityName = data.address?.city || data.address?.town || data.address?.village || data.address?.state;
+          if (cityName) {
+            setCity(cityName);
           }
         } catch (err) {
           console.error('Error reverse geocoding:', err);
@@ -79,11 +73,38 @@ export default function LocationSettings({ isOpen, onClose }: LocationSettingsPr
 
         setLoading(false);
       },
-      (err) => {
-        setError('Failed to get your location. Please enter it manually.');
+      () => {
+        setError('Failed to get your location. Please enter a city name manually.');
         setLoading(false);
       }
     );
+  };
+
+  const handleLookupCity = async () => {
+    if (!city.trim()) return;
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Use OpenStreetMap Nominatim for forward geocoding (no API key needed)
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const data = await res.json();
+      if (data && data.length > 0) {
+        setLat(parseFloat(data[0].lat));
+        setLng(parseFloat(data[0].lon));
+        setCity(data[0].display_name.split(',')[0]); // Use the normalized name
+      } else {
+        setError('Could not find coordinates for that city. Please try a different name.');
+      }
+    } catch (err) {
+      console.error('Error looking up city:', err);
+      setError('Failed to look up city. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSave = async () => {
@@ -175,20 +196,38 @@ export default function LocationSettings({ isOpen, onClose }: LocationSettingsPr
               className="block text-sm font-medium mb-1.5"
               style={{ color: theme.colors.textSecondary }}
             >
-              City (optional)
+              City
             </label>
-            <input
-              type="text"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-lg focus:outline-none focus:ring-2 transition-all"
-              style={{
-                backgroundColor: theme.colors.inputBg,
-                border: `1px solid ${theme.colors.inputBorder}`,
-                color: theme.colors.textPrimary,
-              }}
-              placeholder="e.g., New York, London"
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleLookupCity(); }}
+                className="flex-1 px-3 py-2.5 rounded-lg focus:outline-none focus:ring-2 transition-all"
+                style={{
+                  backgroundColor: theme.colors.inputBg,
+                  border: `1px solid ${theme.colors.inputBorder}`,
+                  color: theme.colors.textPrimary,
+                }}
+                placeholder="e.g., New York, London, Nairobi"
+              />
+              <button
+                onClick={handleLookupCity}
+                disabled={loading || !city.trim()}
+                className="px-3 py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+                style={{
+                  backgroundColor: theme.colors.cardBg,
+                  border: `1px solid ${theme.colors.cardBorder}`,
+                  color: theme.colors.textSecondary,
+                }}
+              >
+                Look up
+              </button>
+            </div>
+            <p className="text-xs mt-1" style={{ color: theme.colors.textMuted }}>
+              Type a city and click &quot;Look up&quot; to set coordinates, or use current location below.
+            </p>
           </div>
 
           <div>

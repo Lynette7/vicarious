@@ -12,6 +12,8 @@ interface Bookshop {
   rating?: number;
   ratingCount?: number;
   placeId: string;
+  googleMapsUri?: string;
+  website?: string;
 }
 
 interface Library {
@@ -21,6 +23,8 @@ interface Library {
   distance: number;
   availabilityStatus?: 'available' | 'checked_out' | 'unknown';
   placeId: string;
+  googleMapsUri?: string;
+  website?: string;
 }
 
 interface BookAvailability {
@@ -31,8 +35,11 @@ interface BookAvailability {
   libraries: Library[];
   onlineOptions: {
     bookshopOrg?: string;
-    libby?: string;
+    amazonSearch?: string;
     openLibrary?: string;
+    worldCat?: string;
+    googleBooks?: string;
+    libbySearch?: string;
   };
 }
 
@@ -135,8 +142,13 @@ export default function BookFinder({ bookTitle, author, country, onClose }: Book
     }
   };
 
-  const openDirections = (placeId: string) => {
-    window.open(`https://www.google.com/maps/place/?q=place_id:${placeId}`, '_blank');
+  const openDirections = (place: { googleMapsUri?: string; placeId: string; name: string; address: string }) => {
+    if (place.googleMapsUri) {
+      window.open(place.googleMapsUri, '_blank');
+    } else {
+      // Fallback: search Google Maps by name and address
+      window.open(`https://www.google.com/maps/search/${encodeURIComponent(place.name + ' ' + place.address)}`, '_blank');
+    }
   };
 
   if (!session?.user) {
@@ -283,16 +295,33 @@ export default function BookFinder({ bookTitle, author, country, onClose }: Book
                             )}
                           </div>
                         </div>
-                        <button
-                          onClick={() => openDirections(shop.placeId)}
-                          className="ml-4 px-3 py-1.5 rounded text-sm font-medium"
-                          style={{
-                            backgroundColor: theme.colors.primary,
-                            color: theme.colors.textOnPrimary,
-                          }}
-                        >
-                          Directions
-                        </button>
+                        <div className="flex flex-col gap-1 ml-4">
+                          <button
+                            onClick={() => openDirections(shop)}
+                            className="px-3 py-1.5 rounded text-sm font-medium"
+                            style={{
+                              backgroundColor: theme.colors.primary,
+                              color: theme.colors.textOnPrimary,
+                            }}
+                          >
+                            Directions
+                          </button>
+                          {shop.website && (
+                            <a
+                              href={shop.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 rounded text-xs font-medium text-center"
+                              style={{
+                                backgroundColor: 'transparent',
+                                border: `1px solid ${theme.colors.cardBorder}`,
+                                color: theme.colors.textSecondary,
+                              }}
+                            >
+                              Website
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -349,16 +378,33 @@ export default function BookFinder({ bookTitle, author, country, onClose }: Book
                             )}
                           </div>
                         </div>
-                        <button
-                          onClick={() => openDirections(lib.placeId)}
-                          className="ml-4 px-3 py-1.5 rounded text-sm font-medium"
-                          style={{
-                            backgroundColor: theme.colors.primary,
-                            color: theme.colors.textOnPrimary,
-                          }}
-                        >
-                          Directions
-                        </button>
+                        <div className="flex flex-col gap-1 ml-4">
+                          <button
+                            onClick={() => openDirections(lib)}
+                            className="px-3 py-1.5 rounded text-sm font-medium"
+                            style={{
+                              backgroundColor: theme.colors.primary,
+                              color: theme.colors.textOnPrimary,
+                            }}
+                          >
+                            Directions
+                          </button>
+                          {lib.website && (
+                            <a
+                              href={lib.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 rounded text-xs font-medium text-center"
+                              style={{
+                                backgroundColor: 'transparent',
+                                border: `1px solid ${theme.colors.cardBorder}`,
+                                color: theme.colors.textSecondary,
+                              }}
+                            >
+                              Website
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -378,13 +424,18 @@ export default function BookFinder({ bookTitle, author, country, onClose }: Book
               >
                 🌐 Online Options
               </h3>
-              <div className="flex flex-wrap gap-2">
+              {availability.isbn && (
+                <p className="text-xs mb-3" style={{ color: theme.colors.textMuted }}>
+                  ISBN: {availability.isbn}
+                </p>
+              )}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {availability.onlineOptions.bookshopOrg && (
                   <a
                     href={availability.onlineOptions.bookshopOrg}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                    className="px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
                     style={{
                       backgroundColor: theme.colors.primary,
                       color: theme.colors.textOnPrimary,
@@ -393,12 +444,26 @@ export default function BookFinder({ bookTitle, author, country, onClose }: Book
                     📚 Bookshop.org
                   </a>
                 )}
+                {availability.onlineOptions.amazonSearch && (
+                  <a
+                    href={availability.onlineOptions.amazonSearch}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
+                    style={{
+                      backgroundColor: '#FF9900',
+                      color: '#000',
+                    }}
+                  >
+                    🛒 Amazon
+                  </a>
+                )}
                 {availability.onlineOptions.openLibrary && (
                   <a
                     href={availability.onlineOptions.openLibrary}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                    className="px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
                     style={{
                       backgroundColor: theme.colors.accent,
                       color: theme.colors.textOnPrimary,
@@ -407,19 +472,51 @@ export default function BookFinder({ bookTitle, author, country, onClose }: Book
                     📖 Open Library
                   </a>
                 )}
-                <a
-                  href={`https://www.overdrive.com/apps/libby`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
-                  style={{
-                    backgroundColor: 'transparent',
-                    border: `1px solid ${theme.colors.cardBorder}`,
-                    color: theme.colors.textSecondary,
-                  }}
-                >
-                  📱 Libby App
-                </a>
+                {availability.onlineOptions.worldCat && (
+                  <a
+                    href={availability.onlineOptions.worldCat}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
+                    style={{
+                      backgroundColor: 'transparent',
+                      border: `1px solid ${theme.colors.cardBorder}`,
+                      color: theme.colors.textSecondary,
+                    }}
+                  >
+                    🌍 WorldCat
+                  </a>
+                )}
+                {availability.onlineOptions.googleBooks && (
+                  <a
+                    href={availability.onlineOptions.googleBooks}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
+                    style={{
+                      backgroundColor: 'transparent',
+                      border: `1px solid ${theme.colors.cardBorder}`,
+                      color: theme.colors.textSecondary,
+                    }}
+                  >
+                    📕 Google Books
+                  </a>
+                )}
+                {availability.onlineOptions.libbySearch && (
+                  <a
+                    href={availability.onlineOptions.libbySearch}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
+                    style={{
+                      backgroundColor: 'transparent',
+                      border: `1px solid ${theme.colors.cardBorder}`,
+                      color: theme.colors.textSecondary,
+                    }}
+                  >
+                    📱 Libby
+                  </a>
+                )}
               </div>
             </div>
           </div>
