@@ -4,6 +4,18 @@ const path = require('path');
 
 const nextConfig = {
   reactStrictMode: true,
+  // Tell Next.js to NOT bundle these packages with webpack on the server.
+  // Instead they will use native require() at runtime, avoiding the
+  // fsevents.node binary parsing issue.
+  experimental: {
+    serverComponentsExternalPackages: [
+      'opik',
+      'opik-gemini',
+      'nunjucks',
+      'chokidar',
+      'fsevents',
+    ],
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -20,7 +32,6 @@ const nextConfig = {
       );
       
       // Resolve three.js examples paths
-      // Direct path to three examples from node_modules
       const threeExamplesPath = path.resolve(__dirname, 'node_modules/three/examples/jsm');
       config.resolve.alias = {
         ...(config.resolve.alias || {}),

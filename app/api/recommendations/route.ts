@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { GoogleGenAI } from '@google/genai';
-import { trackGemini } from 'opik-gemini';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { Opik } from 'opik';
 
 export async function POST(request: NextRequest) {
   try {
@@ -122,22 +120,22 @@ Format your response as a JSON array with this structure:
 
 Return ONLY the JSON array, no additional text.`;
 
-    // Initialize Opik client for tracing (if API key is set)
-    // Visit https://comet.com/opik/your-workspace-name/get-started to get your API key
-    const opikClient = process.env.OPIK_API_KEY
-      ? new Opik({
+    // Initialize Opik client for tracing (lazy, only if API key is set)
+    let opikClient: any = null;
+    let trackedGenAI: GoogleGenAI;
+
+    const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_GEMINI_API_KEY });
+
+    if (process.env.OPIK_API_KEY) {
+      try {
+        const { Opik } = require('opik');
+        const { trackGemini } = require('opik-gemini');
+        opikClient = new Opik({
           apiKey: process.env.OPIK_API_KEY,
           projectName: process.env.OPIK_PROJECT_NAME || 'vicarious',
           workspaceName: process.env.OPIK_WORKSPACE_NAME || 'mulandi-cecilia',
-        })
-      : null;
-
-    // Initialize Gemini client with the new @google/genai SDK
-    const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_GEMINI_API_KEY });
-    
-    // Wrap with Opik tracking - all calls will be automatically traced
-    const trackedGenAI = opikClient
-      ? trackGemini(genAI, {
+        });
+        trackedGenAI = trackGemini(genAI, {
           client: opikClient,
           traceMetadata: {
             tags: ['recommendations', 'book-suggestions'],
@@ -146,8 +144,14 @@ Return ONLY the JSON array, no additional text.`;
             totalCountries: totalCountries,
             isFirstTime: isFirstTime,
           },
-        })
-      : genAI; // Fallback to untracked client if Opik is not configured
+        });
+      } catch (err) {
+        console.warn('[Opik] Failed to initialize:', err);
+        trackedGenAI = genAI;
+      }
+    } else {
+      trackedGenAI = genAI;
+    }
     
     // First, try to list available models using the REST API
     let availableModels: string[] = [];
@@ -171,10 +175,9 @@ Return ONLY the JSON array, no additional text.`;
     const modelCandidates = [
       process.env.GEMINI_MODEL, // User-specified model
       ...availableModels.slice(0, 3), // Top 3 available models
-      'gemini-1.5-flash',       // Fast, commonly available
-      'gemini-1.5-flash-latest', // Latest version
-      'gemini-pro',             // Fallback
-      'gemini-1.0-pro',         // Older version
+      'gemini-2.0-flash',        // Fast, commonly available
+      'gemini-2.5-flash',        // Latest version
+      'gemini-2.0-flash-lite',   // Lightweight fallback
     ].filter(Boolean) as string[];
     
     let text: string = '';
@@ -215,15 +218,15 @@ Return ONLY the JSON array, no additional text.`;
       
       // If all SDK models failed, try using the v1 REST API directly
       if (!text || text.length === 0) {
-        console.log('SDK models failed, trying v1 REST API directly...');
+        console.log('SDK models failed, trying REST API directly...');
         const restApiStartTime = Date.now();
-        const v1Models = ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.0-pro'];
+        const v1Models = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.0-flash-lite'];
         
         for (const model of v1Models) {
           try {
-            console.log(`Trying v1 REST API with model: ${model}`);
+            console.log(`Trying REST API with model: ${model}`);
             const v1Response = await fetch(
-              `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${process.env.GOOGLE_GEMINI_API_KEY}`,
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GOOGLE_GEMINI_API_KEY}`,
               {
                 method: 'POST',
                 headers: {

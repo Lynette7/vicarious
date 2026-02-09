@@ -51,9 +51,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(recommendation);
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const stack = error instanceof Error ? error.stack : undefined;
     console.error('Error generating recommendation:', error);
     return NextResponse.json(
-      { error: 'Failed to generate recommendation' },
+      {
+        error: 'Failed to generate recommendation',
+        detail: process.env.NODE_ENV === 'development' ? message : undefined,
+        ...(process.env.NODE_ENV === 'development' && stack ? { stack } : {}),
+      },
       { status: 500 }
     );
   }

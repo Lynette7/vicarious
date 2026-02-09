@@ -30,6 +30,7 @@ export default function RecommendationsModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [addingBookId, setAddingBookId] = useState<string | null>(null);
+  const [addedBooks, setAddedBooks] = useState<Set<string>>(new Set());
 
   const fetchRecommendations = async () => {
     setLoading(true);
@@ -58,38 +59,40 @@ export default function RecommendationsModal({
   };
 
   const handleAddBook = async (rec: Recommendation) => {
-    setAddingBookId(`${rec.title}-${rec.author}`);
+    const bookKey = `${rec.title}-${rec.author}`;
+    if (addedBooks.has(bookKey)) return;
+    setAddingBookId(bookKey);
     
     try {
-      if (session?.user) {
-         const countryCode = getCountryCode(rec.country);
-         console.log('Adding book:', { title: rec.title, country: rec.country, countryCode });
-        const res = await fetch('/api/books', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: rec.title.trim(),
-            author: rec.author.trim(),
-            countryCode: countryCode,
-            countryName: rec.country,
-          }),
-        });
-
-        if (!res.ok) {
-           const errorData = await res.json().catch(() => ({}));
-            console.error('API Error:', errorData);
-            throw new Error(errorData.error || 'Failed to add book');
-        }
-      } else {
-        // For guest users, you might want to show a message to sign in
+      if (!session?.user) {
         alert('Please sign in to add books');
         return;
       }
 
+      const countryCode = getCountryCode(rec.country);
+      const res = await fetch('/api/books/to-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: rec.title.trim(),
+          author: rec.author.trim(),
+          countryCode: countryCode,
+          countryName: rec.country,
+          source: 'recommendation',
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error('API Error:', errorData);
+        throw new Error(errorData.error || 'Failed to add book');
+      }
+
+      setAddedBooks(prev => new Set(prev).add(bookKey));
       onBookAdded();
     } catch (err) {
       console.error('Failed to add book:', err);
-      alert('Failed to add book. Please try again.');
+      alert('Failed to add book to reading list. Please try again.');
     } finally {
       setAddingBookId(null);
     }
@@ -236,16 +239,27 @@ export default function RecommendationsModal({
                   </div>
                   <button
                     onClick={() => handleAddBook(rec)}
-                    disabled={addingBookId === `${rec.title}-${rec.author}`}
-                    className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+                    disabled={addingBookId === `${rec.title}-${rec.author}` || addedBooks.has(`${rec.title}-${rec.author}`)}
+                    className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 whitespace-nowrap"
                     style={{
-                      backgroundColor: addingBookId === `${rec.title}-${rec.author}` 
-                        ? theme.colors.cardBorder 
-                        : theme.colors.primary,
-                      color: theme.colors.textOnPrimary,
+                      backgroundColor: addedBooks.has(`${rec.title}-${rec.author}`)
+                        ? 'transparent'
+                        : addingBookId === `${rec.title}-${rec.author}`
+                          ? theme.colors.cardBorder
+                          : theme.colors.primary,
+                      color: addedBooks.has(`${rec.title}-${rec.author}`)
+                        ? theme.colors.primary
+                        : theme.colors.textOnPrimary,
+                      border: addedBooks.has(`${rec.title}-${rec.author}`)
+                        ? `1px solid ${theme.colors.cardBorder}`
+                        : 'none',
                     }}
                   >
-                    {addingBookId === `${rec.title}-${rec.author}` ? 'Adding...' : '+ Add'}
+                    {addedBooks.has(`${rec.title}-${rec.author}`)
+                      ? '✓ Added'
+                      : addingBookId === `${rec.title}-${rec.author}`
+                        ? 'Adding...'
+                        : '+ Add to List'}
                   </button>
                 </div>
                 

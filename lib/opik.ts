@@ -5,15 +5,28 @@
  * Integrated with the Opik platform for production observability.
  */
 
-import { Opik } from 'opik';
+// Lazy-initialized Opik client — only created when OPIK_API_KEY is available
+let opikClient: any = null;
 
-// Initialize Opik client
-const opikClient = new Opik({
-  apiKey: process.env.OPIK_API_KEY,
-  apiUrl: process.env.OPIK_URL_OVERRIDE || 'https://www.comet.com/opik/api',
-  projectName: process.env.OPIK_PROJECT_NAME || 'vicarious',
-  workspaceName: process.env.OPIK_WORKSPACE_NAME || 'mulandi-cecilia',
-});
+function getOpikClient() {
+  if (opikClient) return opikClient;
+  if (!process.env.OPIK_API_KEY) return null;
+
+  try {
+    // Dynamic import to avoid build-time initialization
+    const { Opik } = require('opik');
+    opikClient = new Opik({
+      apiKey: process.env.OPIK_API_KEY,
+      apiUrl: process.env.OPIK_URL_OVERRIDE || 'https://www.comet.com/opik/api',
+      projectName: process.env.OPIK_PROJECT_NAME || 'vicarious',
+      workspaceName: process.env.OPIK_WORKSPACE_NAME || 'mulandi-cecilia',
+    });
+    return opikClient;
+  } catch (error) {
+    console.warn('[Opik] Failed to initialize client:', error);
+    return null;
+  }
+}
 
 // Fallback: In-memory store for demo/fallback purposes
 const traces: OpikTrace[] = [];
@@ -80,8 +93,9 @@ export async function trackRecommendation(
   
   // Send to Opik API
   try {
-    if (process.env.OPIK_API_KEY) {
-      await opikClient.trace({
+    const client = getOpikClient();
+    if (client) {
+      await client.trace({
         name: 'book_recommendation',
         input: {
           userId: fullTrace.userId,
@@ -159,8 +173,9 @@ export async function evaluateRecommendation(
   
   // Send to Opik API
   try {
-    if (process.env.OPIK_API_KEY) {
-      await opikClient.trace({
+    const client = getOpikClient();
+    if (client) {
+      await client.trace({
         name: 'recommendation_quality',
         input: {
           recommendationId: recommendationId,
@@ -210,8 +225,9 @@ export async function trackEngagement(
   
   // Send to Opik API as feedback/engagement
   try {
-    if (process.env.OPIK_API_KEY) {
-      await opikClient.trace({
+    const client = getOpikClient();
+    if (client) {
+      await client.trace({
         name: 'user_engagement',
         input: {
           recommendationId: recommendationId,
@@ -246,7 +262,8 @@ export async function getRecommendationMetrics(): Promise<{
 }> {
   // Try to get metrics from Opik API first
   try {
-    if (process.env.OPIK_API_KEY) {
+    const client = getOpikClient();
+    if (client) {
       // You can query Opik API for metrics here
       // For now, fall back to local metrics
     }

@@ -44,7 +44,8 @@ function AIRecommendations({ totalBooks, onAddedToReadList }: AIRecommendationsP
           setError('Add some books to your reading journey to get personalized recommendations.');
           return;
         }
-        throw new Error('Failed to get recommendation');
+        const msg = data.detail || data.error || 'Failed to get recommendation';
+        throw new Error(msg);
       }
 
       const data = await res.json();
