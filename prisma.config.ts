@@ -11,7 +11,7 @@ export default defineConfig({
   },
   engine: "classic",
   datasource: {
-    // Use fallback for prisma generate when DATABASE_URL is not set (e.g. Vercel install)
-    url: process.env.DATABASE_URL || "file:./dev.db",
+    // Uses DATABASE_URL at runtime; falls back to a dummy Postgres URL for prisma generate during build
+    url: process.env.DATABASE_URL || "postgresql://placeholder:placeholder@localhost:5432/placeholder",
   },
 });
