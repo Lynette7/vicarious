@@ -35,11 +35,15 @@ interface BookAvailability {
   libraries: Library[];
   onlineOptions: {
     bookshopOrg?: string;
-    amazonSearch?: string;
+    amazonKindle?: string;
+    googlePlayBooks?: string;
+    kobo?: string;
     openLibrary?: string;
-    worldCat?: string;
-    googleBooks?: string;
+    projectGutenberg?: string;
+    standardEbooks?: string;
     libbySearch?: string;
+    worldCat?: string;
+    goodreads?: string;
   };
 }
 
@@ -422,99 +426,101 @@ export default function BookFinder({ bookTitle, author, country, onClose }: Book
                 className="text-lg font-bold mb-3"
                 style={{ color: theme.colors.textPrimary }}
               >
-                🌐 Online Options
+                🌐 Get This Book Online
               </h3>
               {availability.isbn && (
                 <p className="text-xs mb-3" style={{ color: theme.colors.textMuted }}>
                   ISBN: {availability.isbn}
                 </p>
               )}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+
+              {/* Buy E-Book / Physical */}
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: theme.colors.textMuted }}>
+                Buy (E-Book &amp; Physical)
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                {availability.onlineOptions.amazonKindle && (
+                  <a href={availability.onlineOptions.amazonKindle} target="_blank" rel="noopener noreferrer"
+                    className="px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
+                    style={{ backgroundColor: '#FF9900', color: '#000' }}>
+                    📱 Kindle
+                  </a>
+                )}
+                {availability.onlineOptions.googlePlayBooks && (
+                  <a href={availability.onlineOptions.googlePlayBooks} target="_blank" rel="noopener noreferrer"
+                    className="px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
+                    style={{ backgroundColor: '#4285f4', color: '#fff' }}>
+                    📕 Google Play
+                  </a>
+                )}
+                {availability.onlineOptions.kobo && (
+                  <a href={availability.onlineOptions.kobo} target="_blank" rel="noopener noreferrer"
+                    className="px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
+                    style={{ backgroundColor: '#bf0000', color: '#fff' }}>
+                    📖 Kobo
+                  </a>
+                )}
                 {availability.onlineOptions.bookshopOrg && (
-                  <a
-                    href={availability.onlineOptions.bookshopOrg}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
-                    style={{
-                      backgroundColor: theme.colors.primary,
-                      color: theme.colors.textOnPrimary,
-                    }}
-                  >
+                  <a href={availability.onlineOptions.bookshopOrg} target="_blank" rel="noopener noreferrer"
+                    className="px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
+                    style={{ backgroundColor: theme.colors.primary, color: theme.colors.textOnPrimary }}>
                     📚 Bookshop.org
                   </a>
                 )}
-                {availability.onlineOptions.amazonSearch && (
-                  <a
-                    href={availability.onlineOptions.amazonSearch}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
-                    style={{
-                      backgroundColor: '#FF9900',
-                      color: '#000',
-                    }}
-                  >
-                    🛒 Amazon
-                  </a>
-                )}
+              </div>
+
+              {/* Free E-Books & Library Borrowing */}
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: theme.colors.textMuted }}>
+                Free E-Books &amp; Library Borrowing
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
                 {availability.onlineOptions.openLibrary && (
-                  <a
-                    href={availability.onlineOptions.openLibrary}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
-                    style={{
-                      backgroundColor: theme.colors.accent,
-                      color: theme.colors.textOnPrimary,
-                    }}
-                  >
+                  <a href={availability.onlineOptions.openLibrary} target="_blank" rel="noopener noreferrer"
+                    className="px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
+                    style={{ backgroundColor: theme.colors.accent, color: theme.colors.textOnPrimary }}>
                     📖 Open Library
                   </a>
                 )}
-                {availability.onlineOptions.worldCat && (
-                  <a
-                    href={availability.onlineOptions.worldCat}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
-                    style={{
-                      backgroundColor: 'transparent',
-                      border: `1px solid ${theme.colors.cardBorder}`,
-                      color: theme.colors.textSecondary,
-                    }}
-                  >
-                    🌍 WorldCat
-                  </a>
-                )}
-                {availability.onlineOptions.googleBooks && (
-                  <a
-                    href={availability.onlineOptions.googleBooks}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
-                    style={{
-                      backgroundColor: 'transparent',
-                      border: `1px solid ${theme.colors.cardBorder}`,
-                      color: theme.colors.textSecondary,
-                    }}
-                  >
-                    📕 Google Books
-                  </a>
-                )}
                 {availability.onlineOptions.libbySearch && (
-                  <a
-                    href={availability.onlineOptions.libbySearch}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
-                    style={{
-                      backgroundColor: 'transparent',
-                      border: `1px solid ${theme.colors.cardBorder}`,
-                      color: theme.colors.textSecondary,
-                    }}
-                  >
+                  <a href={availability.onlineOptions.libbySearch} target="_blank" rel="noopener noreferrer"
+                    className="px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
+                    style={{ backgroundColor: '#38b2ac', color: '#fff' }}>
                     📱 Libby
+                  </a>
+                )}
+                {availability.onlineOptions.projectGutenberg && (
+                  <a href={availability.onlineOptions.projectGutenberg} target="_blank" rel="noopener noreferrer"
+                    className="px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
+                    style={{ backgroundColor: 'transparent', border: `1px solid ${theme.colors.cardBorder}`, color: theme.colors.textSecondary }}>
+                    📜 Gutenberg
+                  </a>
+                )}
+                {availability.onlineOptions.standardEbooks && (
+                  <a href={availability.onlineOptions.standardEbooks} target="_blank" rel="noopener noreferrer"
+                    className="px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
+                    style={{ backgroundColor: 'transparent', border: `1px solid ${theme.colors.cardBorder}`, color: theme.colors.textSecondary }}>
+                    📘 Std. Ebooks
+                  </a>
+                )}
+              </div>
+
+              {/* Discover & Find */}
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: theme.colors.textMuted }}>
+                Discover &amp; Find in Libraries
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {availability.onlineOptions.goodreads && (
+                  <a href={availability.onlineOptions.goodreads} target="_blank" rel="noopener noreferrer"
+                    className="px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
+                    style={{ backgroundColor: 'transparent', border: `1px solid ${theme.colors.cardBorder}`, color: theme.colors.textSecondary }}>
+                    ⭐ Goodreads
+                  </a>
+                )}
+                {availability.onlineOptions.worldCat && (
+                  <a href={availability.onlineOptions.worldCat} target="_blank" rel="noopener noreferrer"
+                    className="px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-center"
+                    style={{ backgroundColor: 'transparent', border: `1px solid ${theme.colors.cardBorder}`, color: theme.colors.textSecondary }}>
+                    🌍 WorldCat
                   </a>
                 )}
               </div>

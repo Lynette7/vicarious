@@ -42,12 +42,19 @@ export interface BookAvailability {
   bookshops: Bookshop[];
   libraries: Library[];
   onlineOptions: {
+    // Buy physical or e-book
     bookshopOrg?: string;
-    amazonSearch?: string;
+    amazonKindle?: string;
+    googlePlayBooks?: string;
+    kobo?: string;
+    // Free / library e-books
     openLibrary?: string;
-    worldCat?: string;
-    googleBooks?: string;
+    projectGutenberg?: string;
+    standardEbooks?: string;
     libbySearch?: string;
+    // Discover / find in libraries
+    worldCat?: string;
+    goodreads?: string;
   };
 }
 
@@ -200,13 +207,19 @@ export async function getBookAvailability(
     bookshops: [],
     libraries: [],
     onlineOptions: {
-      // Search-based URLs that always work
+      // Buy physical or e-book
       bookshopOrg: `https://bookshop.org/search?keywords=${encodedQuery}`,
-      amazonSearch: `https://www.amazon.com/s?k=${encodedQuery}&i=stripbooks`,
+      amazonKindle: `https://www.amazon.com/s?k=${encodedQuery}&i=digital-text`,
+      googlePlayBooks: `https://play.google.com/store/search?q=${encodedQuery}&c=books`,
+      kobo: `https://www.kobo.com/us/en/search?query=${encodedQuery}`,
+      // Free / library e-books
       openLibrary: `https://openlibrary.org/search?q=${encodedQuery}`,
-      worldCat: `https://search.worldcat.org/search?q=${encodedQuery}`,
-      googleBooks: `https://www.google.com/search?tbm=bks&q=${encodedQuery}`,
+      projectGutenberg: `https://www.gutenberg.org/ebooks/search/?query=${encodedQuery}`,
+      standardEbooks: `https://standardebooks.org/ebooks?query=${encodedQuery}`,
       libbySearch: `https://libbyapp.com/search/query-${encodedQuery}/page-1`,
+      // Discover / find in libraries
+      worldCat: `https://search.worldcat.org/search?q=${encodedQuery}`,
+      goodreads: `https://www.goodreads.com/search?q=${encodedQuery}`,
     },
   };
 
@@ -232,7 +245,7 @@ export async function getBookAvailability(
         // Upgrade to ISBN-specific URLs where possible
         availability.onlineOptions.bookshopOrg = `https://bookshop.org/search?keywords=${isbn}`;
         availability.onlineOptions.openLibrary = `https://openlibrary.org/isbn/${isbn}`;
-        availability.onlineOptions.amazonSearch = `https://www.amazon.com/s?k=${isbn}&i=stripbooks`;
+        availability.onlineOptions.amazonKindle = `https://www.amazon.com/s?k=${isbn}&i=digital-text`;
         availability.onlineOptions.worldCat = `https://search.worldcat.org/search?q=bn:${isbn}`;
       }
     }
